@@ -1,11 +1,11 @@
 #include <iostream>
 #include <thread>
 #include <mutex>
-#include <chrono>
 #include <queue>
 #include <condition_variable>
-#include <cstdlib>
 #include <cmath>
+#include <immintrin.h>
+
 
 
 using namespace std;
@@ -22,7 +22,25 @@ bool done = false;
 const int MAX_ITEMS = 100;
 
 // zad 3
+alignas(32) float vec1[1000000];
+alignas(32) float vec2[1000000];
+float sum[1000000];
 
+// zad 4
+int tab1[1000];
+int tab2[100];
+
+void populate(float* vec, int size) {
+    for (int i = 0; i < size; ++i) {
+        vec[i] = (rand() % 1000)/100;
+    }
+}
+
+void populateint(int* vec, int size) {
+    for (int i = 0; i < size; ++i) {
+        vec[i] = (rand() % 5)+1;
+    }
+}
 
 void wf1(int id) {
     for (int i = 0; i < 10000; ++i) {
@@ -89,12 +107,54 @@ void zad2() {
 }
 
 void zad3() {
+    populate(&vec1[0], 1000000);
+    populate(&vec2[0], 1000000);
 
+    for (int i = 0; i < 1000000; i += 8) {
+        __m256 vecA = _mm256_load_ps(&vec1[i]);
+        __m256 vecB = _mm256_load_ps(&vec2[i]);
+
+        __m256 vec_sum = _mm256_add_ps(vecA, vecB);
+
+        _mm256_store_ps(&sum[i], vec_sum);
+    }
+    cout << "Zakonczono dodawanie wektorow." << endl;
+    for (int i = 0; i < 8; ++i) {
+        printf("%f + %f = %f\n", vec1[i], vec2[i], sum[i]);
+    }
+}
+void suma() {
+    int wynik = 0;
+    for (int i = 0; i < 1000; i++) {
+        wynik += tab1[i];
+    }
+    lock_guard<mutex> lock(mtx);
+    cout << "Suma elementow: " << wynik << endl;
+}
+void iloczyn() {
+    long long wynik = 1;
+    for (int i = 0; i < 100; i++) {
+        wynik *= tab2[i];
+    }
+    lock_guard<mutex> lock(mtx);
+    cout << "Iloczyn elementow: " << wynik << endl;
+}
+
+void zad4() {
+    populateint(&tab1[0], 1000);
+    populateint(&tab2[0], 100);
+
+    thread s(suma);
+    thread i(iloczyn);
+    s.join();
+    i.join();
+    cout << "Zakonczono obliczenia." << endl;
 }
 
 int main() {
     //zad1();
     //zad2();
-
+    //zad3();
+    zad4();
     return 0;
 }
