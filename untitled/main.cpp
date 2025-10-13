@@ -30,6 +30,13 @@ float sum[1000000];
 int tab1[1000];
 int tab2[100];
 
+// zad 5
+const int N = 10000;
+const int thread_count = 4;
+float vec[N];
+float result_sum[thread_count];
+float result_avg[thread_count];
+
 void populate(float* vec, int size) {
     for (int i = 0; i < size; ++i) {
         vec[i] = (rand() % 1000)/100;
@@ -151,10 +158,45 @@ void zad4() {
     cout << "Zakonczono obliczenia." << endl;
 }
 
+void calc (int start, int end, int thread_id) {
+    float sum = 0;
+    float avg = 0;
+    for (int i = start; i < end; i++) {
+        sum += vec[i];
+    }
+    avg = sum / (end - start);
+    result_sum[thread_id] = sum;
+    result_avg[thread_id] = avg;
+}
+
+void zad5() {
+    populate(&vec[0], N);
+    thread threads[thread_count];
+    int chunk_size = N / thread_count;
+    for (int i = 0; i < thread_count; i++) {
+        int start = i * chunk_size;
+        int end = start + chunk_size;
+        threads[i] = thread(calc, start, end, i);
+    }
+    for (int i = 0; i < thread_count; i++) {
+        threads[i].join();
+    }
+    float total_sum = 0;
+    float total_avg = 0;
+    for (int i = 0; i < thread_count; i++) {
+        total_sum += result_sum[i];
+        total_avg += result_avg[i];
+    }
+    total_avg /= thread_count;
+    cout << "Suma elementow: " << total_sum << endl;
+    cout << "Srednia elementow: " << total_avg << endl;
+}
+
 int main() {
     //zad1();
     //zad2();
     //zad3();
-    zad4();
+    //zad4();
+    zad5();
     return 0;
 }
