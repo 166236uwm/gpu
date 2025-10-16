@@ -19,7 +19,7 @@ int counter = 0;
 queue<int> buffer;
 condition_variable cv;
 bool done = false;
-const int MAX_ITEMS = 100;
+const int MAX_ITEMS = 10;
 
 // zad 3
 alignas(32) float vec1[1000000];
@@ -36,6 +36,9 @@ const int thread_count = 4;
 float vec[N];
 float result_sum[thread_count];
 float result_avg[thread_count];
+
+// zad dodatkowe
+int dividers = 0;
 
 void populate(float* vec, int size) {
     for (int i = 0; i < size; ++i) {
@@ -62,7 +65,7 @@ void wf1(int id) {
 }
 
 void zad1() {
-    cout << "Uruchamianie wątków..." << endl;
+    cout << "Uruchamianie watkow..." << endl;
 
     thread thread1(wf1, 1);
     thread thread2(wf1, 2);
@@ -70,7 +73,7 @@ void zad1() {
     thread1.join();
     thread2.join();
 
-    cout << "Watki zakonczyly prace. ostateczna wartosc licznika to:" << counter << endl;
+    cout << "Watki zakonczyly prace. ostateczna wartosc licznika to: " << counter << endl;
 
 }
 void producer() {
@@ -110,7 +113,7 @@ void zad2() {
     producerThread.join();
     consumerThread.join();
 
-    cout << "Zakończono produkcję i konsumpcję." << endl;
+    cout << "Zakonczono produkcje i konsumpcje." << endl;
 }
 
 void zad3() {
@@ -164,6 +167,7 @@ void calc (int start, int end, int thread_id) {
     for (int i = start; i < end; i++) {
         sum += vec[i];
     }
+
     avg = sum / (end - start);
     result_sum[thread_id] = sum;
     result_avg[thread_id] = avg;
@@ -192,11 +196,54 @@ void zad5() {
     cout << "Srednia elementow: " << total_avg << endl;
 }
 
+void check_divisibility(int start, int end, int num) {
+    for (int i = start; i < end; i++) {
+        if (num % i == 0) {
+            lock_guard<mutex> lock(mtx);
+            dividers++;
+        }
+    }
+}
+
+void zad_dodatkowe(int max) {
+    if (max < 2) {
+        cout << "Brak liczb pierwszych w podanym zakresie." << endl;
+        return;
+    }
+    for (int i = 2; i <= max; ++i) {
+        dividers = 0;
+        if (i % 2 != 0 || i == 2){
+            int sqrt_n =static_cast<int>(sqrt(i));
+            int chunk_size = sqrt_n / thread_count;
+            thread threads[thread_count];
+            for (int j = 0; j < thread_count; ++j) {
+                int start = j * chunk_size + 1;
+                int end = (j == thread_count - 1) ? (sqrt_n + 1) : (start + chunk_size);
+                threads[j] = thread(check_divisibility, start, end, i);
+            }
+            for (int j = 0; j < thread_count; ++j) {
+                threads[j].join();
+            }
+            if (dividers == 1) {
+                cout << i << " "<<endl;
+            }
+        }
+    }
+}
+
 int main() {
-    //zad1();
-    //zad2();
-    //zad3();
-    //zad4();
+    cout << "Zadanie 1:" << endl;
+    zad1();
+    cout << "Zadanie 2:" << endl;
+    zad2();
+    cout << "Zadanie 3:" << endl;
+    zad3();
+    cout << "Zadanie 4:" << endl;
+    zad4();
+    cout << "Zadanie 5:" << endl;
     zad5();
+    cout << "Zadanie dodatkowe:" << endl;
+    zad_dodatkowe(1000);
+
     return 0;
 }
