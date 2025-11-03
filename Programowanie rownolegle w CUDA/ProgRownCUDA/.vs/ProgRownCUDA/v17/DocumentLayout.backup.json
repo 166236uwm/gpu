@@ -1,0 +1,37 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "E:\\studia\\gpu\\Programowanie rownolegle w CUDA\\ProgRownCUDA\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{859C2321-8527-1C37-3B63-D01D11E50BB7}|ProgRownCUDA.vcxproj|E:\\studia\\gpu\\Programowanie rownolegle w CUDA\\ProgRownCUDA\\main.cu||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{859C2321-8527-1C37-3B63-D01D11E50BB7}|ProgRownCUDA.vcxproj|solutionrelative:main.cu||{8B382828-6202-11D1-8870-0000F87579D2}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "main.cu",
+              "DocumentMoniker": "E:\\studia\\gpu\\Programowanie rownolegle w CUDA\\ProgRownCUDA\\main.cu",
+              "RelativeDocumentMoniker": "main.cu",
+              "ToolTip": "E:\\studia\\gpu\\Programowanie rownolegle w CUDA\\ProgRownCUDA\\main.cu",
+              "RelativeToolTip": "main.cu",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAcAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-11-03T17:24:28.593Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
