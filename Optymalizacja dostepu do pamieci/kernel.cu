@@ -113,17 +113,17 @@ void zadanie2() {
 
 
 __global__ void warpShuffle(int* dA, int* dB) {
-	const int n = 1024;
-	int i = threadIdx.x + 256 * blockIdx.x;
-	int j = n - 1 - i;
-	__shared__ int s[n];
-	s[i] = dA[i];
-	__syncthreads();
-	dB[i] = s[j];
+	int idx = threadIdx.x;
+	int val = dA[idx];
+
+	unsigned mask = 0xffffffff;
+	int rev = __shfl_sync(mask, val, 31 - idx);
+
+	dB[idx] = rev;
 }
 
 void zadanie3() {
-	const int n = 1024;
+	const int n = 32;
 	int* A, * B;
 	int* dA, * dB;
 	int size = n * sizeof(int);
@@ -143,7 +143,7 @@ void zadanie3() {
 
 
 	printf("Wywoluej kernele...\n");
-	warpShuffle << <1, 1024 >> > (dA, dB);
+	warpShuffle << <1, 32 >> > (dA, dB);
 	printf("wywolano kernele\n");
 	cudaDeviceSynchronize();
 	printf("zsynchronizowano kernele\n");
@@ -159,46 +159,93 @@ void zadanie3() {
 	free(B);
 }
 
-__global__ void meanWarpShuffle(int* dA, float* suma) {
-	const int n = 1024;
-	int i = threadIdx.x + 256 * blockIdx.x;
-	__shared__ float sum;
-	sum += dA[i];
+
+__global__ void ReduceWithWarpOptimization(float* input, int n) {
+	// pamiec wspoldzielona do trzymania sum z warp'ow, rozmiar elastyczny
+	extern __shared__ float shared[];
+	int tid = threadIdx.x;
+	int index = 2 * blockIdx.x * blockDim.x + tid;
+	float sum = 0; // wartosc do przechowywania w rejestrze
+	sum = (index < n ? input[index] : 0.0f) + (index + blockDim.x < n ? input[index + blockDim.x] : 0.0f);
+
+	// petla sumujaca wartosci z rejestrow tego warpu
+		// offset to kolejno 16, 8, ..., 1
+	for (int offset = warpSize >> 1; offset > 0; offset >>= 1) {
+		// sum = obecna sum z tego watku + wartosc watku od ID 
+		// offset w tym warp'ie
+		sum += __shfl_down_sync(0xFFFFFFFF, sum, offset);
+	}
+
+	// jezeli biezacy id watku to pierwszy w warp'ie
+	if (tid % warpSize == 0) {
+		// ustaw wartosc sumy tego warp'u w pamieci wspoldzielonej 
+		// na jego pozycji
+		shared[tid / warpSize] = sum;
+	}
 	__syncthreads();
-	suma = sum / 1024;
+
+	// jezeli id obecnego watku miesci sie w warpie, to uzyj go do wykonania akcji
+	if (tid < warpSize) {
+		// jezeli id watku odpowiada pozycji wartosci w tablicy shared
+		sum = (tid < (blockDim.x / warpSize)) ? shared[tid] : 0.0f;
+		// offset po kolei 16, 8, ..., 1
+		for (int offset = warpSize >> 1; offset > 0; offset >>= 1) {
+			// zredukuj sumy w warpie, zawarte w rejestrach, 
+			// to sa sumy czastkowe ze wszystkich warp'ow z bloku
+			sum += __shfl_down_sync(0xFFFFFFFF, sum, offset);
+		}
+	}
+
+	if (tid == 0) { // jezeli pierwszy watek w bloku
+		input[blockIdx.x] = sum; // ustaw sume wszystkich warp'ow
+	}
+}
+
+int cpuReduce(int* input, int size) {
+	int sum = 0;
+	for (int i = 0; i < size; ++i) {
+		sum += input[i];
+	}
+	return sum;
 }
 
 void zadanie4() {
-	const int n = 1024;
-	int* A, * B;
-	int* dA, * suma;
-	int size = n * sizeof(int);
+	int n = 1024 * 1024;
+	size_t bytes = n * sizeof(float);
 
-	A = (int*)malloc(size);
+	float* h_input = new float[n];
+	float* d_input;
 
-	cudaMalloc((void**)&dA, size);
-	cudaMalloc((void**)&suma, sizeof(float));
-
-	for (int i = 0; i < n; i++)
-	{
-		A[i] = i;
+	for (int i = 0; i < n; i++) {
+		h_input[i] = i * 1.0;
 	}
 
-	cudaMemcpy(dA, A, size, cudaMemcpyHostToDevice);
+	cudaMalloc(&d_input, bytes);
 
+	cudaMemcpy(d_input, h_input, bytes, cudaMemcpyHostToDevice);
 
-	printf("Wywoluej kernele...\n");
-	warpShuffle << <1, 1024 >> > (dA, suma);
-	printf("wywolano kernele\n");
+	int block_size = 256;
+	int grid_size = (n + 2 * block_size - 1) / (2 * block_size);
+	size_t shared_mem_size = (block_size / 32) * sizeof(float);
+
+	while (grid_size > 1) {
+		ReduceWithWarpOptimization << <grid_size, block_size, shared_mem_size >> > (d_input, n);
+		cudaDeviceSynchronize();
+
+		n = grid_size;
+		grid_size = (n + 2 * block_size - 1) / (2 * block_size);
+	}
+
+	ReduceWithWarpOptimization << <1, block_size, shared_mem_size >> > (d_input, n);
 	cudaDeviceSynchronize();
-	printf("zsynchronizowano kernele\n");
-	float sum;
-	cudaMemcpy(&sum, suma, sizeof(float), cudaMemcpyDeviceToHost);
-	printf("Srednia: %d\n", sum);
 
-	cudaFree(dA);
-	cudaFree(suma);
-	free(A);
+	cudaMemcpy(h_input, d_input, sizeof(float), cudaMemcpyDeviceToHost);
+
+	printf("\nSum: %f \nMean: %f, \n", h_input[0], h_input[0] / n);
+
+	cudaFree(d_input);
+	delete[] h_input;
+
 }
 
 int main() {
@@ -208,6 +255,8 @@ int main() {
 	zadanie2();
 	printf("\n------------------------------\nWykonuje zadanie 3\n------------------------------\n");
 	zadanie3();
+	printf("\n------------------------------\nWykonuje zadanie 4\n------------------------------\n");
+	zadanie4();
 
 	return 0;
 }
